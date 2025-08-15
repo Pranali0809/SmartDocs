@@ -1,0 +1,89 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #f3f3f3;
+  margin: 0;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: none;
+}
+.ql-editor {
+  width: 8.5in;
+  min-height: 11in;
+  padding: 1in;
+  margin: 1rem;
+
+  box-shadow: 0 0 5px 0 rgba(0, 0, 0, 0.5);
+  box-shadow-bottom: 0px;
+  background-color: white;
+}
+
+.ql-container.ql-snow {
+  border: none;
+}
+.container .ql-toolbar.ql-snow {
+  display: flex;
+  justify-content: center;
+  position: sticky;
+  margin: 1rem;
+  margin-bottom: 0;
+  margin-top: 0;
+  top: 0;
+  z-index: 1;
+  background-color: #dee9f4c1;
+  border-radius: 10px;
+  border: none;
+}
+.ql-toolbar {
+  justify-content: center;
+  width: 8.5in;
+}
+.title-bar {
+  width: 816px;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 25px;
+}
+
+.title {
+  border: 2px solid transparent;
+  font-size: 23px;
+  max-width: 15em;
+  max-height: 2.5em;
+  padding: 0.8em;
+  padding-left: 5px;
+  outline: none;
+  overflow: hidden;
+  background-color: #f3f3f3;
+  border-radius: 10px;
+  transition: all 0.5s;
+}
+
+.title:hover,
+.title:focus {
+  border: 2px solid #4a9dec;
+  box-shadow: 0px 0px 0px 7px rgb(74, 157, 236, 20%);
+  background-color: white;
+}
+
+.download {
+  background-color: DodgerBlue;
+  border: none;
+  color: white;
+  padding: 12px 30px;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+/* Darker background on mouse-over */
+.btn:hover {
+  background-color: RoyalBlue;
+}
