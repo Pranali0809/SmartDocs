@@ -1,10 +1,12 @@
 import React from 'react';
+import {useNavigate} from 'react-router-dom';
 import { useMutation } from '@apollo/client';
 import { CREATE_DOCUMENT } from '../queries/Document';
 import{useSelector} from 'react-redux';
 
 const AddDocBut = ({setDocument}) => {
 const userId = useSelector((state) => state.auth.userId);
+const navigate = useNavigate();
 console.log(userId);
   const [createDocumentMutation] = useMutation(CREATE_DOCUMENT);  
   const addDocument=async()=>{
@@ -16,6 +18,7 @@ console.log(userId);
       });
       console.log(data.createDocument);
       setDocument(data.createDocument);
+      // navigate(`/smartdoc/${data.createDocument._id}`);
     } catch (error) {
       console.error(error);
     }

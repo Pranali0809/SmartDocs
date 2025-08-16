@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import store from './store';
 import { Provider } from 'react-redux';
-
+import './index.css';
 import {ApolloClient, InMemoryCache,ApolloProvider,createHttpLink } from '@apollo/client';
 import {persistStore,} from "redux-persist";
 import {PersistGate} from "redux-persist/integration/react";

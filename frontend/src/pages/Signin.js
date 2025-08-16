@@ -12,7 +12,6 @@ const Signin = () => {
   const [password, setPassword] = useState("");
 
   const [loginMutation] = useMutation(LOGIN);
-
   const userId = useSelector((state) => state.auth.userId);
 
   const dispatch = useDispatch();
@@ -40,7 +39,6 @@ const Signin = () => {
       dispatch(setUserId(data.login.userId));
 
       navigate("/home");
-      console.log(data);
 
       // Use setCookie from the useCookies hook to set the cookie
       setCookie("authToken", data.login.token, { path: "/", maxAge: 86400 });

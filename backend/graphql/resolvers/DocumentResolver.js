@@ -6,8 +6,8 @@ const pubsub = new PubSub();
 
 // const initShareDB = require("../../connections/sharedb.js");
 
-const connection=require('../../server.js');
- s
+// const connection=require('../../server.js');
+
 
 
 const documentResolver = {
@@ -23,9 +23,13 @@ const documentResolver = {
         if (!user) {
           throw new Error("User not found");
         }
-        
+        const documents=[]
         const associatedDocumentIds = user.associatedDocuments || [];
-        const documents = await Document.find({ _id: { $in: associatedDocumentIds } });
+        const associatedDocuments = await Document.find({ _id: { $in: associatedDocumentIds } });
+        const createdDocumentIds= user.createdDocuments || [];
+        const createdDocuments = await Document.find({ _id: { $in: createdDocumentIds } });
+
+        documents.push(...associatedDocuments, ...createdDocuments);
         return documents;
       } catch (error) {
         throw new Error(error.message);
@@ -79,7 +83,7 @@ const documentResolver = {
         );
 
         // Initialize ShareDB document for real-time editing (optional)
-        if (connection) {
+        if (context.sharedbConnection) {
           try {
             // let doc = connection.get("collaborations", result._id);
             let doc = context.sharedbConnection.get('collection', result._id);
@@ -105,6 +109,35 @@ const documentResolver = {
           content: result.content,
           associatedUsers: result.associatedUsers,
         };
+      } catch (error) {
+        throw new Error(error.message);
+      }
+    },
+
+    async deleteDocument(_, { docId }, context) {
+      try {
+        // Validate input
+        if (!docId) {
+          throw new Error("Document ID is required");
+        }
+
+        const result = await Document.findOneAndDelete({ _id: docId });
+        if (!result) {
+          throw new Error("Document not found");
+        }
+
+        // Remove docId from all users' createdDocuments and associatedDocuments arrays
+        await User.updateMany(
+          {},
+          {
+            $pull: {
+              createdDocuments: docId,
+              associatedDocuments: docId,
+            },
+          }
+        );
+
+        return result;
       } catch (error) {
         throw new Error(error.message);
       }

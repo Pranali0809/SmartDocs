@@ -38,6 +38,7 @@ const typeDefs=gql`
         updateDocument(documentId:String!,content: String!): Document!
         addClickedDocuments(userId: String!, docId: String!): Document!
         changeDocumentTitle(title:String!,docId:String!):Document!
+        deleteDocument(docId:String!):Document!
     }
 `;
 

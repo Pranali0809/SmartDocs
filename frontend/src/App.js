@@ -4,8 +4,12 @@ import Signin from './pages/Signin';
 import Document from './components/Document';
 import Signup from './pages/Signup';
 import Home from './pages/Home'
+import { loadErrorMessages, loadDevMessages } from "@apollo/client/dev";
 
 function App() {
+    loadDevMessages();
+    loadErrorMessages();
+
   return (
     <Router>
       <Routes>

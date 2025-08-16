@@ -1,192 +1,113 @@
-import { React, useEffect, useState, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useEffect, useState, useCallback, useRef } from "react";
+import { useParams } from "react-router-dom";
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
-import shareDBConnection from "../connections/Sharedb.js";
 import QuillCursors from "quill-cursors";
-import { useCookies } from "react-cookie";
-import { useMutation } from "@apollo/client";
-import {
-  ADD_CLICKED_DOCUMENTS,
-  CHANGE_DOCUMENT_TITLE,
-  GET_DOCUMENT,
-} from "../queries/Document";
-import { useSelector } from "react-redux";
-import LogOutButton from "./LogOutButton";
-import { saveAs } from "file-saver";
-import { pdfExporter } from "quill-to-pdf";
-import "../css/Document.css";
 import { randomColor } from "randomcolor";
+import "../css/Document.css";
+import shareDBConnection from "../connections/Sharedb.js";
+
+Quill.register("modules/cursors", QuillCursors);
 
 const Document = () => {
   const { docId } = useParams();
-  const userId = useSelector((state) => state.auth.userId);
-  const navigate = useNavigate();
-  const [cookies, setCookie] = useCookies(["authToken"]);
-  const doc = shareDBConnection.get("collaborations", docId);
-  const presence = shareDBConnection.getDocPresence("collaborations", docId);
-  Quill.register("modules/cursors", QuillCursors);
-  const [addClickedDoc] = useMutation(ADD_CLICKED_DOCUMENTS);
-  const [changeDocumentTitle] = useMutation(CHANGE_DOCUMENT_TITLE);
+  const doc = shareDBConnection.get("collection", docId);
+  console.log("document:", doc);
+  const presence = shareDBConnection.getDocPresence("collection", docId);
+
+  const editorRef = useRef(null);
+  const quillRef = useRef(null);
+
   const [content, setContent] = useState("");
-  const [getDocument] = useMutation(GET_DOCUMENT);
-  const [title, setTitle] = useState("Untitled");
-  const [name, setName] = useState("");
-  let quill;
 
-  const wrapperRef = useCallback((wrapper) => {
-    getDocumentTitle();
+  // Initialize Quill after doc subscription
+  const initializeQuill = useCallback(() => {
+    if (!editorRef.current) return;
 
-    verifyToken();
-    if (wrapper == null) return;
-    wrapper.innerHTML = "";
-    const editor = document.createElement("div");
+    // Clear previous editor
+    editorRef.current.innerHTML = "";
+    const editorDiv = document.createElement("div");
+    editorRef.current.appendChild(editorDiv);
 
-    wrapper.append(editor);
-    quill = new Quill(editor, {
+    // Create new Quill editor
+    quillRef.current = new Quill(editorDiv, {
       theme: "snow",
       modules: { cursors: true },
     });
-    quill.setContents(doc.data);
-  }, []);
-  const initializeQuill = useCallback(() => {
+
+    const quill = quillRef.current;
+
+    // Load initial document content
+    if (doc.data) {
+      console.log("Loaded document data:", doc.data);
+      quill.setContents(doc.data);
+    }
+
     setContent(quill.root.innerHTML);
+
+    // Cursors
     const cursors = quill.getModule("cursors");
     cursors.createCursor("cursor", "Pranali", "pink");
-    const localPresence = presence.create();
-    quill.setContents(doc.data);
 
+    const localPresence = presence.create();
+
+    // Handle text changes
     quill.on("text-change", (delta, oldDelta, source) => {
       if (source === "user") {
         doc.submitOp(delta, { source: quill }, (err) => {
           if (err) console.error("Submit OP returned an error:", err);
         });
-        const content = quill.root.innerHTML;
-        setContent(content);
-        console.log(content);
+        setContent(quill.root.innerHTML);
       }
     });
 
+    // Apply remote changes
     doc.on("op", (op, source) => {
       if (quill && source !== quill) {
         quill.updateContents(op);
       }
     });
 
+    // Handle presence
     presence.subscribe();
-
     presence.on("receive", (id, cursorData) => {
-      // console.log(cursorData.range);
       if (cursorData.range === null) {
         console.log("remote left");
       } else {
-        var name = (cursorData && cursorData.name) || "Anonymous";
-        var randomHexColor = randomColor();
-        cursors.createCursor(id, name, "blue");
+        const name = cursorData?.name || "Anonymous";
+        cursors.createCursor(id, name, randomColor());
         cursors.moveCursor(id, cursorData.range);
       }
     });
 
+    // Update presence when selection changes
     quill.on("selection-change", (range, oldRange, source) => {
       if (source !== "user") return;
       if (!range) return;
-      else {
-        setTimeout(() => cursors.moveCursor("cursor", range));
-        localPresence.submit({ range, name: "Pranali" }, function (error) {
-          if (error) throw error;
-        });
-      }
+
+      setTimeout(() => cursors.moveCursor("cursor", range));
+      localPresence.submit({ range, name: "Pranali" }, (error) => {
+        if (error) throw error;
+      });
     });
-  }, []);
+  }, [doc, presence]);
 
-  const handleAddClickedDocuments = async () => {
-    try {
-      const { data } = await addClickedDoc({
-        variables: {
-          userId,
-          docId,
-        },
-      });
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const getDocumentTitle = async () => {
-    try {
-      const { data } = await getDocument({
-        variables: {
-          docId,
-        },
-      });
-      setTitle(data.getDocument.title);
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  const verifyToken = () => {
-    const authToken = cookies["authToken"];
-    console.log(authToken);
-
-    if (authToken) {
-      doc.subscribe((err) => {
-        if (err) throw err;
-        handleAddClickedDocuments();
-        initializeQuill();
-      });
-    } else {
-      console.log("AuthToken is not set.");
-      navigate(`/`);
-    }
-  };
-
-  const downloadDocumentAsPDF = async () => {
-    const pdf = await pdfExporter.generatePdf(doc.data);
-    saveAs(pdf, "pdf-export.pdf");
-  };
-
-  const handleBlur = async () => {
-    const { data } = await changeDocumentTitle({
-      variables: {
-        title,
-        docId,
-      },
+  // Subscribe to the doc first
+  useEffect(() => {
+    doc.subscribe((err) => {
+      if (err) throw err;
+      initializeQuill();
     });
-  };
 
-  const handleChange = (event) => {
-    setTitle(event.target.value);
-  };
-  const handleNameBlur = (event) => {
-    setName(event.target.value);
-    console.log(name);
-  };
+    return () => {
+      quillRef.current = null;
+    };
+  }, [doc, initializeQuill]);
 
   return (
-    <>
-      <LogOutButton />
-      <div className="container">
-        <div className="title-bar">
-
-        <input
-          className="title"
-          value={title}
-          onBlur={handleBlur}
-          onChange={handleChange}
-        />
-        <button
-          className="download"
-          onClick={downloadDocumentAsPDF}
-        >
-          Download
-        </button>
-        </div>
-
-      <div ref={wrapperRef}></div>
-      </div>
-
-    </>
+    <div className="container">
+      <div ref={editorRef}></div>
+    </div>
   );
 };
 
