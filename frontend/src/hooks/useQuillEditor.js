@@ -11,7 +11,10 @@ Quill.register("modules/cursors", QuillCursors);
 export const useQuillEditor = (doc, presence) => {
   const editorRef = useRef(null);
   const quillRef = useRef(null);
+
   const [content, setContent] = useState("");
+  const [suggestionText, setSuggestionText] = useState("");
+  const [overlayPos, setOverlayPos] = useState({ top: 0, left: 0 });
 
   const initializeQuill = useCallback(() => {
     if (!editorRef.current) return;
@@ -31,7 +34,6 @@ export const useQuillEditor = (doc, presence) => {
 
     // Load initial document content
     if (doc.data) {
-      console.log("Loaded document data:", doc.data);
       quill.setContents(doc.data);
     }
 
@@ -50,6 +52,22 @@ export const useQuillEditor = (doc, presence) => {
           if (err) console.error("Submit OP returned an error:", err);
         });
         setContent(quill.root.innerHTML);
+
+        const plainText = quill.getText().trim(); // removes the trailing newline
+        console.log("Plain text content:", JSON.stringify(plainText));
+        if (plainText.endsWith("hello")) {
+          setSuggestionText(" world 👋");
+          console.log("Suggestion set");
+
+          const range = quill.getSelection();
+          if (range) {
+            const bounds = quill.getBounds(range.index);
+            setOverlayPos({ top: bounds.top + bounds.height, left: bounds.left });
+          }
+        } else {
+          setSuggestionText("");
+          setOverlayPos(null);
+        }
       }
     });
 
@@ -57,6 +75,14 @@ export const useQuillEditor = (doc, presence) => {
     doc.on("op", (op, source) => {
       if (quill && source !== quill) {
         quill.updateContents(op);
+      }
+    });
+
+    quill.keyboard.addBinding({ key: 9 }, () => {
+      if (suggestionText) {
+        quill.insertText(quill.getLength() - 1, suggestionText, "user");
+        setSuggestionText("");
+        return false; // prevent default tab
       }
     });
 
@@ -84,5 +110,5 @@ export const useQuillEditor = (doc, presence) => {
     });
   }, [doc, presence]);
 
-  return { editorRef, quillRef, initializeQuill, content };
+  return { editorRef, quillRef, initializeQuill, content, suggestionText, overlayPos};
 };

@@ -30,6 +30,7 @@ body {
   border: none;
 }
 .container .ql-toolbar.ql-snow {
+  position: relative;
   display: flex;
   justify-content: center;
   position: sticky;
@@ -87,3 +88,29 @@ body {
 .btn:hover {
   background-color: RoyalBlue;
 }
+
+.editor-shell {
+  position: relative;        /* critical for absolute children */
+  min-height: 420px;
+}
+
+.editor {                    /* your Quill mount */
+  min-height: 420px;
+}
+
+/* If you use Quill's built-in classes */
+.editor .ql-editor {
+  min-height: 420px;
+}
+
+.suggestion-overlay {
+  position: absolute;
+  z-index: 10;
+  pointer-events: none;
+  color: #7a7a7a;
+  opacity: 0.85;
+  font-style: italic;
+  font-size: 0.95rem;
+  white-space: pre;          /* keep spaces if your suggestion starts with one */
+}
+
