@@ -18,7 +18,7 @@ const Document = () => {
 
 
   // Initialize Quill after doc subscription
-  const { editorRef, quillRef, initializeQuill, content, suggestionText,   overlayPos,} = useQuillEditor(doc, presence);
+  const { editorRef, quillRef, initializeQuill, content, suggestionText, overlayPos, isLoading } = useQuillEditor(doc, presence);
   // Subscribe to the doc first
   useEffect(() => {
     doc.subscribe((err) => {
@@ -35,10 +35,11 @@ const Document = () => {
     <div className="container">
       <div ref={editorRef}></div>
       <SuggestionOverlay
-      editorRef={editorRef}
-      suggestionText={suggestionText}
-      overlayPos={overlayPos}
-/>
+        editorRef={editorRef}
+        suggestionText={suggestionText}
+        overlayPos={overlayPos}
+        isLoading={isLoading}
+      />
 
     </div>
   );

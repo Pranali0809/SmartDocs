@@ -23,10 +23,17 @@ const typeDefs=gql`
         content:String!
         associatedUsers:[String]
     }
+    type AISuggestion{
+        suggestion:String!
+        success:Boolean!
+        error:String
+    }
     type Query{
         authData(email:String!,password:String!):AuthData!
         getDocuments(userId: String!): [Document]!
         getDocument(docId:String!):Document!
+        getAISuggestion(context:String, currentWord:String):AISuggestion!
+        getSmartSuggestion(fullText:String!, cursorPosition:Int!):AISuggestion!
     }
     type Subscription{
         documentChanged(documentId:String!,userId:String):Document

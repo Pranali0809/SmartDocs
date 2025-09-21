@@ -37,6 +37,7 @@
     "mongojs": "^3.1.0",
     "mongoose": "^8.0.3",
     "nodemon": "^3.0.2",
+    "openai": "^5.22.0",
     "rich-text": "^4.1.0",
     "sharedb": "^4.1.2",
     "sharedb-mongo": "^4.1.0",

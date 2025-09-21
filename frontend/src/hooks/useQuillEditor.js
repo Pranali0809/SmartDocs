@@ -1,20 +1,44 @@
 // hooks/useQuillEditor.js
 import "../css/Document.css";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import Quill from "quill";
 import QuillCursors from "quill-cursors";
 import { randomColor } from "randomcolor";
+import { useAIAutocomplete } from "./useAIAutocomplete";
 
 Quill.register("modules/cursors", QuillCursors);
 
 export const useQuillEditor = (doc, presence) => {
   const editorRef = useRef(null);
   const quillRef = useRef(null);
+  const suggestionRangeRef = useRef(null);
 
   const [content, setContent] = useState("");
-  const [suggestionText, setSuggestionText] = useState("");
   const [overlayPos, setOverlayPos] = useState({ top: 0, left: 0 });
+
+  const {
+    suggestion: aiSuggestion,
+    isLoading,
+    requestSuggestion,
+    clearSuggestion,
+    acceptSuggestion,
+  } = useAIAutocomplete();
+
+  // Update overlay position when AI suggestion changes
+  useEffect(() => {
+    if (aiSuggestion && quillRef.current) {
+      const quill = quillRef.current;
+      const range = quill.getSelection();
+      if (range) {
+        const bounds = quill.getBounds(range.index);
+        setOverlayPos({ 
+          top: bounds.top + bounds.height + 5, 
+          left: bounds.left 
+        });
+      }
+    }
+  }, [aiSuggestion]);
 
   const initializeQuill = useCallback(() => {
     if (!editorRef.current) return;
@@ -53,20 +77,26 @@ export const useQuillEditor = (doc, presence) => {
         });
         setContent(quill.root.innerHTML);
 
-        const plainText = quill.getText().trim(); // removes the trailing newline
-        console.log("Plain text content:", JSON.stringify(plainText));
-        if (plainText.endsWith("hello")) {
-          setSuggestionText(" world 👋");
-          console.log("Suggestion set");
-
-          const range = quill.getSelection();
-          if (range) {
-            const bounds = quill.getBounds(range.index);
-            setOverlayPos({ top: bounds.top + bounds.height, left: bounds.left });
+        // Get current text and cursor position for AI suggestions
+        const range = quill.getSelection();
+        if (range) {
+          const fullText = quill.getText();
+          const cursorPosition = range.index;
+          
+          // Only request suggestion if there's meaningful text
+          if (fullText.trim().length > 2) {
+            // Get the current word being typed
+            const textBeforeCursor = fullText.substring(0, cursorPosition);
+            const words = textBeforeCursor.split(/\s+/);
+            const currentWord = words[words.length - 1] || '';
+            
+            // Only request if current word has at least 2 characters
+            if (currentWord.length >= 2) {
+              requestSuggestion(fullText, cursorPosition);
+            } else {
+              clearSuggestion();
+            }
           }
-        } else {
-          setSuggestionText("");
-          setOverlayPos(null);
         }
       }
     });
@@ -78,12 +108,27 @@ export const useQuillEditor = (doc, presence) => {
       }
     });
 
-    quill.keyboard.addBinding({ key: 9 }, () => {
-      if (suggestionText) {
-        quill.insertText(quill.getLength() - 1, suggestionText, "user");
-        setSuggestionText("");
+    // Handle Tab key for accepting AI suggestions
+    quill.keyboard.addBinding({ key: 9 }, (range, context) => {
+      if (aiSuggestion) {
+        const currentRange = quill.getSelection();
+        if (currentRange) {
+          quill.insertText(currentRange.index, acceptSuggestion(), "user");
+          // Move cursor to end of inserted text
+          quill.setSelection(currentRange.index + aiSuggestion.length);
+        }
         return false; // prevent default tab
       }
+      return true; // allow default tab behavior
+    });
+
+    // Handle Escape key to dismiss suggestions
+    quill.keyboard.addBinding({ key: 27 }, () => {
+      if (aiSuggestion) {
+        clearSuggestion();
+        return false;
+      }
+      return true;
     });
 
     // Handle presence
@@ -108,7 +153,14 @@ export const useQuillEditor = (doc, presence) => {
         if (error) throw error;
       });
     });
-  }, [doc, presence]);
 
-  return { editorRef, quillRef, initializeQuill, content, suggestionText, overlayPos};
+    // Clear suggestions when selection changes (user moves cursor)
+    quill.on("selection-change", (range, oldRange, source) => {
+      if (source === "user" && range && oldRange && range.index !== oldRange.index) {
+        clearSuggestion();
+      }
+    });
+  }, [doc, presence, requestSuggestion, clearSuggestion, acceptSuggestion, aiSuggestion]);
+
+  return { editorRef, quillRef, initializeQuill, content, suggestionText: aiSuggestion, overlayPos, isLoading };
 };
