@@ -14,7 +14,20 @@ body {
   flex-direction: column;
   align-items: center;
   border: none;
+  min-height: 100vh;
+  padding: 20px;
 }
+
+.editor-container {
+  position: relative;
+  width: 100%;
+  max-width: 8.5in;
+}
+
+.editor-wrapper {
+  min-height: 400px;
+}
+
 .ql-editor {
   width: 8.5in;
   min-height: 11in;
@@ -48,10 +61,13 @@ body {
   width: 8.5in;
 }
 .title-bar {
-  width: 816px;
+  width: 100%;
+  max-width: 816px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin-top: 25px;
+  margin-bottom: 20px;
 }
 
 .title {
@@ -73,6 +89,13 @@ body {
   border: 2px solid #4a9dec;
   box-shadow: 0px 0px 0px 7px rgb(74, 157, 236, 20%);
   background-color: white;
+}
+
+.debug-info {
+  font-family: monospace;
+  background: rgba(0,0,0,0.1);
+  padding: 5px 10px;
+  border-radius: 5px;
 }
 
 .download {

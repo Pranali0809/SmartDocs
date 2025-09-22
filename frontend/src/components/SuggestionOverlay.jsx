@@ -3,6 +3,13 @@ import React from "react";
 import "../css/Document.css";
 
 export const SuggestionOverlay = ({ editorRef, suggestionText, overlayPos, isLoading }) => {
+  console.log("💭 SuggestionOverlay render:", {
+    hasEditorRef: !!editorRef?.current,
+    suggestionText,
+    overlayPos,
+    isLoading
+  });
+  
   if (!editorRef.current || !suggestionText) return null;
 
   return (
@@ -20,6 +27,8 @@ export const SuggestionOverlay = ({ editorRef, suggestionText, overlayPos, isLoa
         maxWidth: "300px",
         wordWrap: "break-word",
         zIndex: 1000,
+        border: "1px solid rgba(255,255,255,0.3)",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.3)"
       }}
     >
       {isLoading ? (

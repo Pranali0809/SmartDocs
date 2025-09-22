@@ -3,6 +3,8 @@ import { useLazyQuery } from '@apollo/client';
 import { GET_SMART_SUGGESTION } from '../queries/AI';
 
 export const useAIAutocomplete = () => {
+  console.log("🤖 useAIAutocomplete hook initialized");
+  
   const [suggestion, setSuggestion] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const debounceTimeoutRef = useRef(null);
@@ -11,23 +13,33 @@ export const useAIAutocomplete = () => {
   const [getSmartSuggestion] = useLazyQuery(GET_SMART_SUGGESTION, {
     fetchPolicy: 'no-cache',
     onCompleted: (data) => {
+      console.log("✅ AI suggestion completed:", data);
       setIsLoading(false);
       if (data?.getSmartSuggestion?.success && data.getSmartSuggestion.suggestion) {
+        console.log("💡 Setting AI suggestion:", data.getSmartSuggestion.suggestion);
         setSuggestion(data.getSmartSuggestion.suggestion);
       } else {
+        console.log("🚫 No valid suggestion received");
         setSuggestion('');
       }
     },
     onError: (error) => {
-      console.error('AI Suggestion Error:', error);
+      console.error('❌ AI Suggestion Error:', error);
       setIsLoading(false);
       setSuggestion('');
     },
   });
 
   const requestSuggestion = useCallback((fullText, cursorPosition) => {
+    console.log("🤖 Requesting AI suggestion:", { 
+      fullTextLength: fullText.length, 
+      cursorPosition,
+      textAroundCursor: fullText.substring(Math.max(0, cursorPosition - 20), cursorPosition + 20)
+    });
+    
     // Clear previous timeout
     if (debounceTimeoutRef.current) {
+      console.log("⏰ Clearing previous debounce timeout");
       clearTimeout(debounceTimeoutRef.current);
     }
 
@@ -37,11 +49,14 @@ export const useAIAutocomplete = () => {
     // Create a unique request ID to handle race conditions
     const requestId = Date.now();
     lastRequestRef.current = requestId;
+    console.log("🆔 Created request ID:", requestId);
 
     // Debounce the API call
     debounceTimeoutRef.current = setTimeout(() => {
+      console.log("⏰ Debounce timeout triggered for request:", requestId);
       // Only proceed if this is still the latest request
       if (lastRequestRef.current === requestId) {
+        console.log("🚀 Making AI API call...");
         setIsLoading(true);
         getSmartSuggestion({
           variables: {
@@ -49,11 +64,14 @@ export const useAIAutocomplete = () => {
             cursorPosition,
           },
         });
+      } else {
+        console.log("🚫 Request outdated, skipping API call");
       }
     }, 1000); // 1 second debounce
   }, [getSmartSuggestion]);
 
   const clearSuggestion = useCallback(() => {
+    console.log("🧹 Clearing AI suggestion");
     setSuggestion('');
     setIsLoading(false);
     if (debounceTimeoutRef.current) {
@@ -62,10 +80,18 @@ export const useAIAutocomplete = () => {
   }, []);
 
   const acceptSuggestion = useCallback(() => {
+    console.log("✅ Accepting AI suggestion:", suggestion);
     const currentSuggestion = suggestion;
     setSuggestion('');
     return currentSuggestion;
   }, [suggestion]);
+
+  console.log("🤖 useAIAutocomplete state:", {
+    suggestion,
+    isLoading,
+    hasDebounceTimeout: !!debounceTimeoutRef.current,
+    lastRequestId: lastRequestRef.current
+  });
 
   return {
     suggestion,
