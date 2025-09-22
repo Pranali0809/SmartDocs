@@ -1,10 +1,27 @@
 // backend/connections/firebaseconfig.js
 const admin = require('firebase-admin');
-const serviceAccount = require('./serviceAccountKey.json');
+
+// Try to load service account key, fallback to environment variables
+let serviceAccount;
+try {
+  serviceAccount = require('./serviceAccountKey.json');
+} catch (error) {
+  console.log('Service account key file not found, using environment variables');
+  serviceAccount = {
+    type: "service_account",
+    project_id: process.env.FIREBASE_PROJECT_ID,
+    private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
+    private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    client_email: process.env.FIREBASE_CLIENT_EMAIL,
+    client_id: process.env.FIREBASE_CLIENT_ID,
+    auth_uri: "https://accounts.google.com/o/oauth2/auth",
+    token_uri: "https://oauth2.googleapis.com/token",
+    auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+    client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${process.env.FIREBASE_CLIENT_EMAIL}`
+  };
+}
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  // Optionally, add databaseURL if you use Realtime Database
+  databaseURL: process.env.FIREBASE_DATABASE_URL // Optional: only if using Realtime Database
 });
-
-module.exports = admin;
