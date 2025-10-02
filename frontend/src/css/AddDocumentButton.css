@@ -1,0 +1,32 @@
+.add-document-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #1a73e8;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-document-btn:hover {
+  background: #1557b0;
+  box-shadow: 0 2px 6px rgba(26, 115, 232, 0.3);
+}
+
+.add-document-btn:active {
+  transform: scale(0.98);
+}
+
+.add-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.add-label {
+  font-weight: 500;
+}

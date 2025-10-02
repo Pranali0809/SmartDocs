@@ -4,6 +4,7 @@ import { GET_DOCUMENTS } from '../queries/Document';
 import { DELETE_DOCUMENT } from '../queries/Document';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import '../css/DocumentList.css';
 
 const DocumentList = ({ document }) => {
   const navigate = useNavigate();
@@ -52,46 +53,40 @@ const DocumentList = ({ document }) => {
   }, [document]);
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow">
-      <h2 className="text-2xl font-bold mb-4 text-gray-800">
-        Documents Associated with User {userId}
-      </h2>
-      <button
-        onClick={getDocuments}
-        className="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-      >
-        display documents
-      </button>
-      {loading && <p className="text-gray-500">Loading...</p>}
-      {error && <p className="text-red-500">Error: {error.message}</p>}
-      <ul className="space-y-3">
+    <div className="document-list-container">
+      {loading && <p className="loading-message">Loading documents...</p>}
+      {error && <p className="error-message">Error: {error.message}</p>}
+      <div className="documents-grid">
         {(documents.length ? documents : data?.getDocuments || []).map((document) => (
-          <li
+          <div
             key={document._id}
-            
-            className="flex items-center justify-between cursor-pointer p-4 bg-gray-100 rounded hover:bg-blue-100 transition"
+            className="document-card"
+            onClick={() => openDocument(document._id)}
           >
-            <div onClick={() => openDocument(document._id)} className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-700">{document.title}</h3>
-          </div>
-          <div>
+            <div className="document-preview">
+              <div className="document-icon">📄</div>
+            </div>
+            <div className="document-info">
+              <h3 className="document-title">{document.title || 'Untitled Document'}</h3>
+              <div className="document-meta">
+                <span className="doc-date">Opened {new Date().toLocaleDateString()}</span>
+              </div>
+            </div>
             <button
-            onClick={() => handleDeleteDocument(document._id)}
-            className="ml-4 text-red-500 hover:text-red-700"
-            title="Delete Document"
-          >
-            {/* Bin SVG icon */}
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none"
-              viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteDocument(document._id);
+              }}
+              className="delete-btn"
+              title="Delete Document"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+              </svg>
+            </button>
           </div>
-          </li>
-          
         ))}
-      </ul>
+      </div>
     </div>
   );
 };

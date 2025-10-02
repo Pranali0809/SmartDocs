@@ -1,28 +1,41 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
-import { useParams } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
 import QuillCursors from "quill-cursors";
-import { randomColor } from "randomcolor";
 import "../css/Document.css";
 import shareDBConnection from "../connections/Sharedb.js";
 import { SuggestionOverlay } from "./SuggestionOverlay.jsx";
 import { useQuillEditor } from "../hooks/useQuillEditor.js";
 import { useCookies } from 'react-cookie';
-import { useNavigate } from "react-router-dom";
-import LogOutButton from './LogOutButton';
+import UserProfileSettings from './UserProfileSettings';
+import LeftSidebar from './LeftSidebar';
+import RightSidebar from './RightSidebar';
+import DocumentStats from './DocumentStats';
+import CollaborationChat from './CollaborationChat';
+import AIChartPanel from './AIChartPanel';
 
 Quill.register("modules/cursors", QuillCursors);
 
 const Document = () => {
   const { docId } = useParams();
   const navigate = useNavigate();
-  const [cookies] = useCookies(['authToken']);
+  const [cookies, setCookie, removeCookie] = useCookies(['authToken']);
   const doc = shareDBConnection.get("collection", docId);
   const presence = shareDBConnection.getDocPresence("collection", docId);
 
+  const [showProfileSettings, setShowProfileSettings] = useState(false);
+  const [userSettings, setUserSettings] = useState({
+    displayName: 'User',
+    cursorColor: '#4285f4',
+    profilePhoto: ''
+  });
+  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
+  const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [aiPanelOpen, setAIPanelOpen] = useState(false);
+  const [documentOpenedAt] = useState(Date.now());
 
-  // Initialize Quill after doc subscription
   const { editorRef, quillRef, initializeQuill, content, suggestionText, overlayPos, isLoading } = useQuillEditor(doc, presence);
   
   console.log("🎯 useQuillEditor returned:", {
@@ -66,30 +79,73 @@ const Document = () => {
     };
   }, [doc, initializeQuill]);
 
+  const handleLogout = () => {
+    removeCookie('authToken');
+    navigate('/');
+  };
+
+  const handleUpdateSettings = (newSettings) => {
+    setUserSettings(newSettings);
+  };
+
   return (
     <>
-      <LogOutButton />
-      <div className="container">
-        <div className="title-bar">
+      <header className="document-header">
+        <div className="header-left">
+          <button className="back-btn" onClick={() => navigate('/home')}>
+            ←
+          </button>
           <input
-            className="title"
+            className="document-title-input"
             defaultValue="Untitled Document"
             placeholder="Document Title"
           />
-          <div className="debug-info" style={{ fontSize: '12px', color: '#666' }}>
-            Doc ID: {docId} | Connected: {doc.type ? '✅' : '❌'}
-          </div>
         </div>
-        
-        <div className="editor-container" style={{ position: 'relative' }}>
+        <div className="header-right">
+          <div className="collaborators-avatars">
+            <div className="avatar" style={{ backgroundColor: '#4285f4' }}>J</div>
+            <div className="avatar" style={{ backgroundColor: '#ea4335' }}>S</div>
+          </div>
+          <button className="share-btn">Share</button>
+          <button
+            className="profile-btn"
+            onClick={() => setShowProfileSettings(true)}
+          >
+            {userSettings.profilePhoto ? (
+              <img src={userSettings.profilePhoto} alt="Profile" />
+            ) : (
+              <div className="profile-avatar" style={{ backgroundColor: userSettings.cursorColor }}>
+                {userSettings.displayName.charAt(0)}
+              </div>
+            )}
+          </button>
+        </div>
+      </header>
+
+      <LeftSidebar
+        isCollapsed={leftSidebarCollapsed}
+        onToggle={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
+      />
+
+      <RightSidebar
+        isCollapsed={rightSidebarCollapsed}
+        onToggle={() => setRightSidebarCollapsed(!rightSidebarCollapsed)}
+      />
+
+      <main className={`document-main ${
+        leftSidebarCollapsed ? 'left-collapsed' : ''
+      } ${
+        rightSidebarCollapsed ? 'right-collapsed' : ''
+      }`}>
+        <div className="editor-container">
           <div ref={editorRef} className="editor-wrapper">
             {!editorRef.current && (
-              <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+              <div className="loading-editor">
                 Loading editor...
               </div>
             )}
           </div>
-          
+
           <SuggestionOverlay
             editorRef={editorRef}
             suggestionText={suggestionText}
@@ -97,28 +153,31 @@ const Document = () => {
             isLoading={isLoading}
           />
         </div>
-        
-        {/* Debug Panel */}
-        <div style={{ 
-          position: 'fixed', 
-          bottom: '10px', 
-          right: '10px', 
-          background: 'rgba(0,0,0,0.8)', 
-          color: 'white', 
-          padding: '10px', 
-          borderRadius: '5px',
-          fontSize: '12px',
-          maxWidth: '300px'
-        }}>
-          <div>🔧 Debug Info:</div>
-          <div>Editor Ref: {editorRef.current ? '✅' : '❌'}</div>
-          <div>Quill Ref: {quillRef.current ? '✅' : '❌'}</div>
-          <div>Content Length: {content?.length || 0}</div>
-          <div>AI Suggestion: {suggestionText || 'None'}</div>
-          <div>AI Loading: {isLoading ? '⏳' : '✅'}</div>
-          <div>ShareDB Connected: {doc.type ? '✅' : '❌'}</div>
-        </div>
-      </div>
+      </main>
+
+      <DocumentStats
+        content={content}
+        createdAt={Date.now() - 86400000}
+        openedAt={documentOpenedAt}
+      />
+
+      <CollaborationChat
+        isOpen={chatOpen}
+        onToggle={() => setChatOpen(!chatOpen)}
+        currentUser={userSettings}
+      />
+
+      <AIChartPanel
+        isOpen={aiPanelOpen}
+        onToggle={() => setAIPanelOpen(!aiPanelOpen)}
+      />
+
+      <UserProfileSettings
+        isOpen={showProfileSettings}
+        onClose={() => setShowProfileSettings(false)}
+        userSettings={userSettings}
+        onUpdateSettings={handleUpdateSettings}
+      />
     </>
   );
 };
