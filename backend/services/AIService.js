@@ -1,46 +1,29 @@
-const { HfInference } = require('@huggingface/inference');
-
 class AIService {
   constructor() {
     console.log("🤖 Initializing AI Service...");
-    // if (!process.env.HF_API_KEY) {
-    //   console.error("❌ HUGGINGFACE_API_KEY not found in environment variables");
-    //   throw new Error("Hugging Face API key is required");
-    // }
-    // console.log("✅ Hugging Face API key found:", process.env.HF_API_KEY.substring(0, 10) + "...");
+    if (!process.env.HF_API_KEY) {
+      console.error("❌ HF_API_KEY not found in environment variables");
+      throw new Error("Hugging Face API key is required");
+    }
+    console.log("✅ Hugging Face API key found:", process.env.HF_API_KEY.substring(0, 10) + "...");
 
-    this.hf = new HfInference(process.env.HF_API_KEY);
+    this.apiKey = process.env.HF_API_KEY;
+    this.apiUrl = 'https://api-inference.huggingface.co/models/';
 
-    const textGenerationModels = [
-      'gpt2',
-      'distilgpt2',
-      'EleutherAI/gpt-neo-125m',
-      'EleutherAI/gpt-neo-1.3B',
-      'EleutherAI/gpt-neo-2.7B',
-      'EleutherAI/gpt-j-6b',
-      'bigscience/bloom-560m',
-      'bigscience/bloom-1b1',
-      'microsoft/DialoGPT-medium',
-      'microsoft/DialoGPT-large',
-      'mistralai/Mistral-7B-v0.1',
-      'mistralai/Mistral-7B-Instruct-v0.1',
-      'meta-llama/Llama-2-7b-hf',
-      'meta-llama/Llama-2-7b-chat-hf',
-      'tiiuae/falcon-7b',
-      'tiiuae/falcon-7b-instruct',
-      'google/flan-t5-base',
-      'google/flan-t5-large'
+    const recommendedModels = [
+      'mistralai/Mistral-7B-Instruct-v0.2',
+      'HuggingFaceH4/zephyr-7b-beta',
+      'google/flan-t5-large',
+      'google/flan-t5-xxl',
+      'bigscience/bloom-1b7',
+      'gpt2-large',
+      'EleutherAI/gpt-neo-2.7B'
     ];
 
-    this.model = process.env.HF_API_KEY || 'gpt2';
-
-    if (!textGenerationModels.includes(this.model) && !this.model.includes('gpt') && !this.model.includes('llama') && !this.model.includes('mistral') && !this.model.includes('falcon')) {
-      console.warn(`⚠️ Warning: Model '${this.model}' may not support text generation. Defaulting to 'gpt2'.`);
-      console.warn(`⚠️ Supported models: ${textGenerationModels.join(', ')}`);
-      this.model = 'gpt2';
-    }
+    this.model = process.env.HF_MODEL || 'mistralai/Mistral-7B-Instruct-v0.2';
 
     console.log("✅ Using Hugging Face model:", this.model);
+    console.log("💡 Recommended models:", recommendedModels.join(', '));
   }
 
   async generateSuggestion(context, currentWord) {
@@ -50,26 +33,41 @@ class AIService {
       const prompt = `${context} ${currentWord}`;
 
       console.log("🚀 Making Hugging Face API call...");
-      const response = await this.hf.textGeneration({
-        model: this.model,
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: 20,
-          temperature: 0.7,
-          top_p: 0.9,
-          return_full_text: false,
-          do_sample: true,
-        }
+
+      const response = await fetch(`${this.apiUrl}${this.model}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          inputs: prompt,
+          parameters: {
+            max_new_tokens: 20,
+            temperature: 0.7,
+            top_p: 0.9,
+            return_full_text: false,
+            do_sample: true,
+          },
+          options: {
+            wait_for_model: true,
+            use_cache: false
+          }
+        })
       });
 
-      const suggestion = response.generated_text?.trim();
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('❌ Hugging Face API Error:', errorData);
+        return '';
+      }
+
+      const result = await response.json();
+      const suggestion = result[0]?.generated_text?.trim() || result.generated_text?.trim();
       console.log("✅ AI suggestion received:", suggestion);
       return suggestion || '';
     } catch (error) {
       console.error('❌ AI Service Error:', error.message);
-      if (error.response) {
-        console.error('❌ Hugging Face API Error Response:', JSON.stringify(error.response));
-      }
       return '';
     }
   }
@@ -102,29 +100,43 @@ class AIService {
       const prompt = `${context} ${lastWord}`;
 
       console.log("🚀 Making smart Hugging Face API call...");
-      const response = await this.hf.textGeneration({
-        model: this.model,
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: 30,
-          temperature: 0.5,
-          top_p: 0.9,
-          return_full_text: false,
-          do_sample: true,
-        }
+
+      const response = await fetch(`${this.apiUrl}${this.model}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          inputs: prompt,
+          parameters: {
+            max_new_tokens: 30,
+            temperature: 0.5,
+            top_p: 0.9,
+            return_full_text: false,
+            do_sample: true,
+          },
+          options: {
+            wait_for_model: true,
+            use_cache: false
+          }
+        })
       });
 
-      const suggestion = response.generated_text?.trim();
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('❌ Hugging Face API Error:', errorData);
+        return '';
+      }
+
+      const result = await response.json();
+      const suggestion = result[0]?.generated_text?.trim() || result.generated_text?.trim();
       console.log("✅ Smart AI suggestion received:", suggestion);
       return suggestion || '';
     } catch (error) {
       console.error('❌ Smart AI Service Error:', error.message);
-      if (error.response) {
-        console.error('❌ Hugging Face API Error Response:', JSON.stringify(error.response));
-      }
       return '';
     }
-    return "";
   }
 }
 
