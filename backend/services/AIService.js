@@ -3,13 +3,13 @@ const { HfInference } = require('@huggingface/inference');
 class AIService {
   constructor() {
     console.log("🤖 Initializing AI Service...");
-    if (!process.env.HUGGINGFACE_API_KEY) {
-      console.error("❌ HUGGINGFACE_API_KEY not found in environment variables");
-      throw new Error("Hugging Face API key is required");
-    }
-    console.log("✅ Hugging Face API key found:", process.env.HUGGINGFACE_API_KEY.substring(0, 10) + "...");
+    // if (!process.env.HF_API_KEY) {
+    //   console.error("❌ HUGGINGFACE_API_KEY not found in environment variables");
+    //   throw new Error("Hugging Face API key is required");
+    // }
+    // console.log("✅ Hugging Face API key found:", process.env.HF_API_KEY.substring(0, 10) + "...");
 
-    this.hf = new HfInference(process.env.HUGGINGFACE_API_KEY);
+    this.hf = new HfInference("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");
 
     const textGenerationModels = [
       'gpt2',
@@ -32,7 +32,7 @@ class AIService {
       'google/flan-t5-large'
     ];
 
-    this.model = process.env.HUGGINGFACE_MODEL || 'gpt2';
+    this.model = process.env.HF_API_KEY || 'gpt2';
 
     if (!textGenerationModels.includes(this.model) && !this.model.includes('gpt') && !this.model.includes('llama') && !this.model.includes('mistral') && !this.model.includes('falcon')) {
       console.warn(`⚠️ Warning: Model '${this.model}' may not support text generation. Defaulting to 'gpt2'.`);
@@ -128,6 +128,6 @@ class AIService {
   }
 }
 
-}
+
 
 module.exports = new AIService();
