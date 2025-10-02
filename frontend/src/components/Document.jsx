@@ -21,10 +21,6 @@ const Document = () => {
   const doc = shareDBConnection.get("collection", docId);
   const presence = shareDBConnection.getDocPresence("collection", docId);
 
-  console.log("🚀 Document Component - Starting with docId:", docId);
-  console.log("🔐 Auth token exists:", !!cookies.authToken);
-  console.log("📄 ShareDB doc:", doc);
-  console.log("👥 ShareDB presence:", presence);
 
   // Initialize Quill after doc subscription
   const { editorRef, quillRef, initializeQuill, content, suggestionText, overlayPos, isLoading } = useQuillEditor(doc, presence);
@@ -41,31 +37,31 @@ const Document = () => {
 
   // Verify authentication
   useEffect(() => {
-    console.log("🔍 Checking authentication...");
+    // console.log("🔍 Checking authentication...");
     const authToken = cookies.authToken;
     if (!authToken) {
-      console.log("❌ No auth token found, redirecting to login");
+      // console.log("❌ No auth token found, redirecting to login");
       navigate('/');
       return;
     }
-    console.log("✅ Auth token found:", authToken.substring(0, 20) + "...");
+    // console.log("✅ Auth token found:", authToken.substring(0, 20) + "...");
   }, [cookies.authToken, navigate]);
   // Subscribe to the doc first
   useEffect(() => {
-    console.log("📡 Setting up ShareDB subscription for doc:", docId);
+    // console.log("📡 Setting up ShareDB subscription for doc:", docId);
     
     doc.subscribe((err) => {
       if (err) {
-        console.error("❌ ShareDB subscription error:", err);
+        // console.error("❌ ShareDB subscription error:", err);
         return;
       }
-      console.log("✅ ShareDB doc subscribed successfully");
-      console.log("📄 Doc data:", doc.data);
+      // console.log("✅ ShareDB doc subscribed successfully");
+      // console.log("📄 Doc data:", doc.data);
       initializeQuill();
     });
 
     return () => {
-      console.log("🧹 Cleaning up Document component");
+      // console.log("🧹 Cleaning up Document component");
       quillRef.current = null;
     };
   }, [doc, initializeQuill]);
