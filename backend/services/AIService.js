@@ -9,7 +9,7 @@ class AIService {
     // }
     // console.log("✅ Hugging Face API key found:", process.env.HF_API_KEY.substring(0, 10) + "...");
 
-    this.hf = new HfInference("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");
+    this.hf = new HfInference(process.env.HF_API_KEY);
 
     const textGenerationModels = [
       'gpt2',
