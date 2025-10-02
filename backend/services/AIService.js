@@ -1,75 +1,92 @@
-const OpenAI = require('openai');
+const { HfInference } = require('@huggingface/inference');
 
 class AIService {
   constructor() {
     console.log("🤖 Initializing AI Service...");
-    if (!process.env.OPENAI_API_KEY) {
-      console.error("❌ OPENAI_API_KEY not found in environment variables");
-      throw new Error("OpenAI API key is required");
+    if (!process.env.HUGGINGFACE_API_KEY) {
+      console.error("❌ HUGGINGFACE_API_KEY not found in environment variables");
+      throw new Error("Hugging Face API key is required");
     }
-    console.log("✅ OpenAI API key found:", process.env.OPENAI_API_KEY.substring(0, 10) + "...");
-    
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    console.log("✅ Hugging Face API key found:", process.env.HUGGINGFACE_API_KEY.substring(0, 10) + "...");
+
+    this.hf = new HfInference(process.env.HUGGINGFACE_API_KEY);
+
+    const textGenerationModels = [
+      'gpt2',
+      'distilgpt2',
+      'EleutherAI/gpt-neo-125m',
+      'EleutherAI/gpt-neo-1.3B',
+      'EleutherAI/gpt-neo-2.7B',
+      'EleutherAI/gpt-j-6b',
+      'bigscience/bloom-560m',
+      'bigscience/bloom-1b1',
+      'microsoft/DialoGPT-medium',
+      'microsoft/DialoGPT-large',
+      'mistralai/Mistral-7B-v0.1',
+      'mistralai/Mistral-7B-Instruct-v0.1',
+      'meta-llama/Llama-2-7b-hf',
+      'meta-llama/Llama-2-7b-chat-hf',
+      'tiiuae/falcon-7b',
+      'tiiuae/falcon-7b-instruct',
+      'google/flan-t5-base',
+      'google/flan-t5-large'
+    ];
+
+    this.model = process.env.HUGGINGFACE_MODEL || 'gpt2';
+
+    if (!textGenerationModels.includes(this.model) && !this.model.includes('gpt') && !this.model.includes('llama') && !this.model.includes('mistral') && !this.model.includes('falcon')) {
+      console.warn(`⚠️ Warning: Model '${this.model}' may not support text generation. Defaulting to 'gpt2'.`);
+      console.warn(`⚠️ Supported models: ${textGenerationModels.join(', ')}`);
+      this.model = 'gpt2';
+    }
+
+    console.log("✅ Using Hugging Face model:", this.model);
   }
 
   async generateSuggestion(context, currentWord) {
     console.log("🤖 Generating suggestion:", { context: context?.substring(0, 50), currentWord });
-    
+
     try {
-      const prompt = `Given the following text context and the current word being typed, provide a single, natural completion suggestion that would make sense in this context. Only return the completion text, nothing else.
+      const prompt = `${context} ${currentWord}`;
 
-Context: "${context}"
-Current word: "${currentWord}"
-
-Provide a brief, contextually appropriate completion (1-3 words maximum):`;
-
-      console.log("🚀 Making OpenAI API call...");
-      const response = await this.openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: "You are a helpful writing assistant that provides contextual text completions. Always respond with only the completion text, no explanations or additional formatting."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        max_tokens: 20,
-        temperature: 0.7,
+      console.log("🚀 Making Hugging Face API call...");
+      const response = await this.hf.textGeneration({
+        model: this.model,
+        inputs: prompt,
+        parameters: {
+          max_new_tokens: 20,
+          temperature: 0.7,
+          top_p: 0.9,
+          return_full_text: false,
+          do_sample: true,
+        }
       });
 
-      const suggestion = response.choices[0]?.message?.content?.trim();
+      const suggestion = response.generated_text?.trim();
       console.log("✅ AI suggestion received:", suggestion);
       return suggestion || '';
     } catch (error) {
       console.error('❌ AI Service Error:', error.message);
       if (error.response) {
-        console.error('❌ OpenAI API Error Response:', error.response.data);
+        console.error('❌ Hugging Face API Error Response:', JSON.stringify(error.response));
       }
       return '';
     }
   }
 
   async generateSmartSuggestion(fullText, cursorPosition) {
-    console.log("🧠 Generating smart suggestion:", { 
-      fullTextLength: fullText.length, 
+    console.log("🧠 Generating smart suggestion:", {
+      fullTextLength: fullText.length,
       cursorPosition,
       textAroundCursor: fullText.substring(Math.max(0, cursorPosition - 30), cursorPosition + 30)
     });
-    
+
     try {
-      // Extract context around cursor position
       const beforeCursor = fullText.substring(0, cursorPosition);
-      const afterCursor = fullText.substring(cursorPosition);
-      
-      // Get the last few words for context
+
       const words = beforeCursor.trim().split(/\s+/);
       const lastWord = words[words.length - 1] || '';
-      const context = words.slice(-10).join(' '); // Last 10 words for context
+      const context = words.slice(-10).join(' ');
 
       console.log("📝 Text analysis:", {
         lastWord,
@@ -82,37 +99,28 @@ Provide a brief, contextually appropriate completion (1-3 words maximum):`;
         return '';
       }
 
-      const prompt = `Complete this text naturally. Given the context and the incomplete word, suggest a completion:
+      const prompt = `${context} ${lastWord}`;
 
-Context: "${context}"
-Incomplete word: "${lastWord}"
-
-Provide only the completion part (what should be added to complete the word or continue the sentence):`;
-
-      console.log("🚀 Making smart OpenAI API call...");
-      const response = await this.openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: "You are a smart text completion assistant. Provide only the text that should be added to complete the current word or continue the sentence naturally. No explanations, just the completion text."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        max_tokens: 30,
-        temperature: 0.5,
+      console.log("🚀 Making smart Hugging Face API call...");
+      const response = await this.hf.textGeneration({
+        model: this.model,
+        inputs: prompt,
+        parameters: {
+          max_new_tokens: 30,
+          temperature: 0.5,
+          top_p: 0.9,
+          return_full_text: false,
+          do_sample: true,
+        }
       });
 
-      const suggestion = response.choices[0]?.message?.content?.trim();
+      const suggestion = response.generated_text?.trim();
       console.log("✅ Smart AI suggestion received:", suggestion);
       return suggestion || '';
     } catch (error) {
       console.error('❌ Smart AI Service Error:', error.message);
       if (error.response) {
-        console.error('❌ OpenAI API Error Response:', error.response.data);
+        console.error('❌ Hugging Face API Error Response:', JSON.stringify(error.response));
       }
       return '';
     }
