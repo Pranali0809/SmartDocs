@@ -8,7 +8,7 @@ class AIService {
     //   throw new Error("❌ Missing HUGGINGFACE_API_KEY");
     // }
     this.hf = new InferenceClient({
-  token: "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",
+  token: process.env.HF_API_KEY,
 });
   }
 
