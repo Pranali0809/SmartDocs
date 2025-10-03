@@ -28,12 +28,54 @@ const typeDefs=gql`
         success:Boolean!
         error:String
     }
+    type RAGQueryResult{
+        success:Boolean!
+        answer:String!
+        context:[String]
+        timestamp:String
+        error:String
+    }
+    type RAGSummaryResult{
+        success:Boolean!
+        summary:String!
+        statistics:DocumentStatistics
+        timestamp:String
+        error:String
+    }
+    type DocumentStatistics{
+        word_count:Int
+        character_count:Int
+        original_length:Int
+    }
+    type RAGAnalysisResult{
+        success:Boolean!
+        word_count:Int
+        sentence_count:Int
+        character_count:Int
+        average_word_length:Float
+        top_words:[TopWord]
+        timestamp:String
+        error:String
+    }
+    type TopWord{
+        word:String!
+        count:Int!
+    }
+    type RAGHealthResult{
+        success:Boolean!
+        status:String!
+        error:String
+    }
     type Query{
         authData(email:String!,password:String!):AuthData!
         getDocuments(userId: String!): [Document]!
         getDocument(docId:String!):Document!
         getAISuggestion(context:String, currentWord:String):AISuggestion!
         getSmartSuggestion(fullText:String!, cursorPosition:Int!):AISuggestion!
+        ragQuery(content:String!, question:String!):RAGQueryResult!
+        ragSummarize(content:String!):RAGSummaryResult!
+        ragAnalyze(content:String!):RAGAnalysisResult!
+        ragHealth:RAGHealthResult!
     }
     type Subscription{
         documentChanged(documentId:String!,userId:String):Document

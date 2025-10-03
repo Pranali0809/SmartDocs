@@ -170,6 +170,7 @@ const Document = () => {
       <AIChartPanel
         isOpen={aiPanelOpen}
         onToggle={() => setAIPanelOpen(!aiPanelOpen)}
+        documentContent={content}
       />
 
       <UserProfileSettings

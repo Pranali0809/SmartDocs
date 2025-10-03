@@ -1,15 +1,23 @@
 import React, { useState } from 'react';
+import { useLazyQuery } from '@apollo/client';
+import { RAG_QUERY, RAG_SUMMARIZE, RAG_ANALYZE } from '../queries/RAG';
 import '../css/AIChartPanel.css';
 
-const AIChartPanel = ({ isOpen, onToggle }) => {
+const AIChartPanel = ({ isOpen, onToggle, documentContent }) => {
   const [activeTab, setActiveTab] = useState('qa');
   const [question, setQuestion] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [summary, setSummary] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
+
+  const [ragQuery] = useLazyQuery(RAG_QUERY);
+  const [ragSummarize] = useLazyQuery(RAG_SUMMARIZE);
+  const [ragAnalyze] = useLazyQuery(RAG_ANALYZE);
 
   const handleAskQuestion = async (e) => {
     e.preventDefault();
-    if (!question.trim()) return;
+    if (!question.trim() || !documentContent) return;
 
     const userMessage = {
       id: Date.now(),
@@ -19,19 +27,82 @@ const AIChartPanel = ({ isOpen, onToggle }) => {
     };
 
     setChatHistory([...chatHistory, userMessage]);
+    const currentQuestion = question;
     setQuestion('');
     setIsLoading(true);
 
-    setTimeout(() => {
+    try {
+      const { data } = await ragQuery({
+        variables: {
+          content: documentContent,
+          question: currentQuestion
+        }
+      });
+
       const aiResponse = {
         id: Date.now() + 1,
         type: 'ai',
-        text: 'This is a placeholder response. The Python backend integration will provide actual AI-powered answers based on your document content.',
+        text: data?.ragQuery?.answer || 'I apologize, but I could not process your question.',
         timestamp: new Date()
       };
       setChatHistory(prev => [...prev, aiResponse]);
+    } catch (error) {
+      console.error('RAG query error:', error);
+      const errorResponse = {
+        id: Date.now() + 1,
+        type: 'ai',
+        text: 'I encountered an error processing your question. Please try again.',
+        timestamp: new Date()
+      };
+      setChatHistory(prev => [...prev, errorResponse]);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
+  };
+
+  const handleSummarize = async () => {
+    if (!documentContent) return;
+    setIsLoading(true);
+
+    try {
+      const { data } = await ragSummarize({
+        variables: { content: documentContent }
+      });
+
+      if (data?.ragSummarize?.success) {
+        setSummary(data.ragSummarize);
+        const summaryMessage = {
+          id: Date.now(),
+          type: 'ai',
+          text: `**Document Summary:**\n\n${data.ragSummarize.summary}`,
+          timestamp: new Date()
+        };
+        setChatHistory(prev => [...prev, summaryMessage]);
+      }
+    } catch (error) {
+      console.error('Summarization error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAnalyze = async () => {
+    if (!documentContent) return;
+    setIsLoading(true);
+
+    try {
+      const { data } = await ragAnalyze({
+        variables: { content: documentContent }
+      });
+
+      if (data?.ragAnalyze?.success) {
+        setAnalytics(data.ragAnalyze);
+      }
+    } catch (error) {
+      console.error('Analysis error:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -76,6 +147,13 @@ const AIChartPanel = ({ isOpen, onToggle }) => {
                       <span className="empty-icon">💡</span>
                       <h4>Ask questions about your document</h4>
                       <p>Get AI-powered insights and answers based on your content</p>
+                      <button
+                        className="summarize-btn"
+                        onClick={handleSummarize}
+                        disabled={!documentContent || isLoading}
+                      >
+                        📄 Summarize Document
+                      </button>
                     </div>
                   ) : (
                     <div className="chat-messages">
@@ -141,36 +219,74 @@ const AIChartPanel = ({ isOpen, onToggle }) => {
 
             {activeTab === 'analytics' && (
               <div className="analytics-section">
-                <div className="analytics-grid">
-                  <div className="analytics-card">
-                    <div className="card-icon">📝</div>
-                    <div className="card-content">
-                      <div className="card-value">1,234</div>
-                      <div className="card-label">Total Words</div>
-                    </div>
+                {!analytics ? (
+                  <div className="empty-state">
+                    <span className="empty-icon">📈</span>
+                    <h4>Document Analytics</h4>
+                    <p>Get detailed insights about your document</p>
+                    <button
+                      className="analyze-btn"
+                      onClick={handleAnalyze}
+                      disabled={!documentContent || isLoading}
+                    >
+                      {isLoading ? 'Analyzing...' : '🔍 Analyze Document'}
+                    </button>
                   </div>
-                  <div className="analytics-card">
-                    <div className="card-icon">⏱️</div>
-                    <div className="card-content">
-                      <div className="card-value">15 min</div>
-                      <div className="card-label">Avg. Read Time</div>
+                ) : (
+                  <div>
+                    <div className="analytics-grid">
+                      <div className="analytics-card">
+                        <div className="card-icon">📝</div>
+                        <div className="card-content">
+                          <div className="card-value">{analytics.word_count?.toLocaleString()}</div>
+                          <div className="card-label">Total Words</div>
+                        </div>
+                      </div>
+                      <div className="analytics-card">
+                        <div className="card-icon">📄</div>
+                        <div className="card-content">
+                          <div className="card-value">{analytics.sentence_count}</div>
+                          <div className="card-label">Sentences</div>
+                        </div>
+                      </div>
+                      <div className="analytics-card">
+                        <div className="card-icon">🔤</div>
+                        <div className="card-content">
+                          <div className="card-value">{analytics.character_count?.toLocaleString()}</div>
+                          <div className="card-label">Characters</div>
+                        </div>
+                      </div>
+                      <div className="analytics-card">
+                        <div className="card-icon">📊</div>
+                        <div className="card-content">
+                          <div className="card-value">{analytics.average_word_length?.toFixed(1)}</div>
+                          <div className="card-label">Avg Word Length</div>
+                        </div>
+                      </div>
                     </div>
+                    {analytics.top_words && analytics.top_words.length > 0 && (
+                      <div className="top-words-section">
+                        <h4>Most Frequent Words</h4>
+                        <div className="top-words-list">
+                          {analytics.top_words.slice(0, 10).map((item, idx) => (
+                            <div key={idx} className="top-word-item">
+                              <span className="word-rank">#{idx + 1}</span>
+                              <span className="word-text">{item.word}</span>
+                              <span className="word-count">{item.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <button
+                      className="refresh-btn"
+                      onClick={handleAnalyze}
+                      disabled={isLoading}
+                    >
+                      🔄 Refresh Analysis
+                    </button>
                   </div>
-                  <div className="analytics-card">
-                    <div className="card-icon">🎯</div>
-                    <div className="card-content">
-                      <div className="card-value">92%</div>
-                      <div className="card-label">Readability</div>
-                    </div>
-                  </div>
-                  <div className="analytics-card">
-                    <div className="card-icon">✏️</div>
-                    <div className="card-content">
-                      <div className="card-value">47</div>
-                      <div className="card-label">Total Edits</div>
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
             )}
           </div>
