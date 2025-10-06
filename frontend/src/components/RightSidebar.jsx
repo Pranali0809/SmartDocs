@@ -1,84 +1,318 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useLazyQuery } from '@apollo/client';
+import { RAG_QUERY, RAG_SUMMARIZE, RAG_ANALYZE } from '../queries/RAG';
 import '../css/RightSidebar.css';
 
-const RightSidebar = ({ isCollapsed, onToggle, contributors }) => {
-  const defaultContributors = contributors || [
-    { id: 1, name: 'John Doe', color: '#4285f4', contribution: 45 },
-    { id: 2, name: 'Jane Smith', color: '#ea4335', contribution: 30 },
-    { id: 3, name: 'Mike Johnson', color: '#34a853', contribution: 15 },
-    { id: 4, name: 'Sarah Wilson', color: '#fbbc04', contribution: 10 }
+const RightSidebar = ({ isCollapsed, onToggle, documentContent, documentId, userId, userSettings }) => {
+  const [activeTab, setActiveTab] = useState('contributions');
+  const [question, setQuestion] = useState('');
+  const [chatHistory, setChatHistory] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [summary, setSummary] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
+
+  const [ragQuery] = useLazyQuery(RAG_QUERY);
+  const [ragSummarize] = useLazyQuery(RAG_SUMMARIZE);
+  const [ragAnalyze] = useLazyQuery(RAG_ANALYZE);
+
+  const contributors = [
+    { id: 1, name: 'John Doe', color: '#4285f4', contribution: 450, percentage: 45 },
+    { id: 2, name: 'Jane Smith', color: '#ea4335', contribution: 320, percentage: 32 },
+    { id: 3, name: 'Bob Wilson', color: '#34a853', contribution: 230, percentage: 23 }
   ];
 
-  const totalContribution = defaultContributors.reduce((sum, c) => sum + c.contribution, 0);
+  const handleAskQuestion = async (e) => {
+    e.preventDefault();
+    if (!question.trim() || !documentContent) return;
+
+    const userMessage = {
+      id: Date.now(),
+      type: 'user',
+      text: question,
+      timestamp: new Date()
+    };
+
+    setChatHistory([...chatHistory, userMessage]);
+    const currentQuestion = question;
+    setQuestion('');
+    setIsLoading(true);
+
+    try {
+      const { data } = await ragQuery({
+        variables: {
+          content: documentContent,
+          question: currentQuestion
+        }
+      });
+
+      const aiResponse = {
+        id: Date.now() + 1,
+        type: 'ai',
+        text: data?.ragQuery?.answer || 'I apologize, but I could not process your question.',
+        timestamp: new Date()
+      };
+      setChatHistory(prev => [...prev, aiResponse]);
+    } catch (error) {
+      console.error('RAG query error:', error);
+      const errorResponse = {
+        id: Date.now() + 1,
+        type: 'ai',
+        text: 'I encountered an error processing your question. Please try again.',
+        timestamp: new Date()
+      };
+      setChatHistory(prev => [...prev, errorResponse]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSummarize = async () => {
+    if (!documentContent) return;
+    setIsLoading(true);
+
+    try {
+      const { data } = await ragSummarize({
+        variables: { content: documentContent }
+      });
+
+      if (data?.ragSummarize?.success) {
+        setSummary(data.ragSummarize);
+        const summaryMessage = {
+          id: Date.now(),
+          type: 'ai',
+          text: `**Document Summary:**\n\n${data.ragSummarize.summary}`,
+          timestamp: new Date()
+        };
+        setChatHistory(prev => [...prev, summaryMessage]);
+      }
+    } catch (error) {
+      console.error('Summarization error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAnalyze = async () => {
+    if (!documentContent) return;
+    setIsLoading(true);
+
+    try {
+      const { data } = await ragAnalyze({
+        variables: { content: documentContent }
+      });
+
+      if (data?.ragAnalyze?.success) {
+        setAnalytics(data.ragAnalyze);
+      }
+    } catch (error) {
+      console.error('Analysis error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div className={`right-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+    <aside className={`right-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
       <button className="sidebar-toggle" onClick={onToggle}>
         {isCollapsed ? '←' : '→'}
       </button>
 
       {!isCollapsed && (
         <div className="sidebar-content">
-          <div className="sidebar-header">
-            <h3>Contributions</h3>
+          <div className="sidebar-tabs">
+            <button
+              className={`sidebar-tab ${activeTab === 'contributions' ? 'active' : ''}`}
+              onClick={() => setActiveTab('contributions')}
+            >
+              👥 Contributors
+            </button>
+            <button
+              className={`sidebar-tab ${activeTab === 'qa' ? 'active' : ''}`}
+              onClick={() => setActiveTab('qa')}
+            >
+              🤖 Q&A
+            </button>
+            <button
+              className={`sidebar-tab ${activeTab === 'analytics' ? 'active' : ''}`}
+              onClick={() => setActiveTab('analytics')}
+            >
+              📊 Analytics
+            </button>
           </div>
 
           <div className="sidebar-body">
-            <div className="contribution-chart">
-              <svg width="100%" height="8" style={{ borderRadius: '4px', overflow: 'hidden' }}>
-                {defaultContributors.reduce((acc, contributor, index) => {
-                  const previousWidth = index > 0
-                    ? defaultContributors.slice(0, index).reduce((sum, c) => sum + c.contribution, 0)
-                    : 0;
-                  const width = (contributor.contribution / totalContribution) * 100;
-                  const x = (previousWidth / totalContribution) * 100;
-
-                  return [
-                    ...acc,
-                    <rect
-                      key={contributor.id}
-                      x={`${x}%`}
-                      y="0"
-                      width={`${width}%`}
-                      height="8"
-                      fill={contributor.color}
-                    />
-                  ];
-                }, [])}
-              </svg>
-            </div>
-
-            <div className="contributors-list">
-              {defaultContributors.map((contributor) => (
-                <div key={contributor.id} className="contributor-item">
-                  <div className="contributor-info">
-                    <div
-                      className="contributor-color"
-                      style={{ backgroundColor: contributor.color }}
-                    ></div>
-                    <span className="contributor-name">{contributor.name}</span>
-                  </div>
-                  <div className="contributor-percentage">
-                    {Math.round((contributor.contribution / totalContribution) * 100)}%
-                  </div>
+            {activeTab === 'contributions' && (
+              <div className="contributions-section">
+                <h3>Team Contributions</h3>
+                <div className="contributors-list">
+                  {contributors.map((contributor) => (
+                    <div key={contributor.id} className="contributor-item">
+                      <div className="contributor-header">
+                        <div
+                          className="contributor-avatar"
+                          style={{ backgroundColor: contributor.color }}
+                        >
+                          {contributor.name.charAt(0)}
+                        </div>
+                        <div className="contributor-info">
+                          <div className="contributor-name">{contributor.name}</div>
+                          <div className="contributor-stats">
+                            {contributor.contribution} characters
+                          </div>
+                        </div>
+                        <div className="contributor-percentage">
+                          {contributor.percentage}%
+                        </div>
+                      </div>
+                      <div className="contribution-bar">
+                        <div
+                          className="contribution-fill"
+                          style={{
+                            width: `${contributor.percentage}%`,
+                            backgroundColor: contributor.color
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
 
-            <div className="contribution-summary">
-              <div className="summary-item">
-                <span className="summary-label">Total Edits</span>
-                <span className="summary-value">{totalContribution}</span>
+            {activeTab === 'qa' && (
+              <div className="qa-section">
+                <h3>Ask AI about this Document</h3>
+                <div className="qa-chat">
+                  {chatHistory.length === 0 ? (
+                    <div className="empty-state">
+                      <span className="empty-icon">💡</span>
+                      <p>Ask questions about your document</p>
+                      <button
+                        className="summarize-btn"
+                        onClick={handleSummarize}
+                        disabled={!documentContent || isLoading}
+                      >
+                        📄 Summarize Document
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="chat-messages">
+                      {chatHistory.map((msg) => (
+                        <div key={msg.id} className={`qa-message ${msg.type}`}>
+                          <div className="message-bubble">{msg.text}</div>
+                        </div>
+                      ))}
+                      {isLoading && (
+                        <div className="qa-message ai">
+                          <div className="message-bubble loading">
+                            <div className="typing-indicator">
+                              <span></span>
+                              <span></span>
+                              <span></span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <form className="qa-input-form" onSubmit={handleAskQuestion}>
+                  <input
+                    type="text"
+                    className="qa-input"
+                    placeholder="Ask a question..."
+                    value={question}
+                    onChange={(e) => setQuestion(e.target.value)}
+                  />
+                  <button
+                    type="submit"
+                    className="qa-send-btn"
+                    disabled={!question.trim() || isLoading}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                    </svg>
+                  </button>
+                </form>
               </div>
-              <div className="summary-item">
-                <span className="summary-label">Active Contributors</span>
-                <span className="summary-value">{defaultContributors.length}</span>
+            )}
+
+            {activeTab === 'analytics' && (
+              <div className="analytics-section">
+                <h3>Document Analytics</h3>
+                {!analytics ? (
+                  <div className="empty-state">
+                    <span className="empty-icon">📈</span>
+                    <p>Get detailed insights</p>
+                    <button
+                      className="analyze-btn"
+                      onClick={handleAnalyze}
+                      disabled={!documentContent || isLoading}
+                    >
+                      {isLoading ? 'Analyzing...' : '🔍 Analyze Document'}
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="analytics-grid">
+                      <div className="analytics-card">
+                        <div className="card-icon">📝</div>
+                        <div className="card-content">
+                          <div className="card-value">{analytics.word_count?.toLocaleString()}</div>
+                          <div className="card-label">Words</div>
+                        </div>
+                      </div>
+                      <div className="analytics-card">
+                        <div className="card-icon">📄</div>
+                        <div className="card-content">
+                          <div className="card-value">{analytics.sentence_count}</div>
+                          <div className="card-label">Sentences</div>
+                        </div>
+                      </div>
+                      <div className="analytics-card">
+                        <div className="card-icon">🔤</div>
+                        <div className="card-content">
+                          <div className="card-value">{analytics.character_count?.toLocaleString()}</div>
+                          <div className="card-label">Characters</div>
+                        </div>
+                      </div>
+                      <div className="analytics-card">
+                        <div className="card-icon">📊</div>
+                        <div className="card-content">
+                          <div className="card-value">{analytics.average_word_length?.toFixed(1)}</div>
+                          <div className="card-label">Avg Word Length</div>
+                        </div>
+                      </div>
+                    </div>
+                    {analytics.top_words && analytics.top_words.length > 0 && (
+                      <div className="top-words-section">
+                        <h4>Most Frequent Words</h4>
+                        <div className="top-words-list">
+                          {analytics.top_words.slice(0, 10).map((item, idx) => (
+                            <div key={idx} className="top-word-item">
+                              <span className="word-rank">#{idx + 1}</span>
+                              <span className="word-text">{item.word}</span>
+                              <span className="word-count">{item.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <button
+                      className="refresh-btn"
+                      onClick={handleAnalyze}
+                      disabled={isLoading}
+                    >
+                      🔄 Refresh
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
-    </div>
+    </aside>
   );
 };
 

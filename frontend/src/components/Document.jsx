@@ -9,11 +9,9 @@ import { SuggestionOverlay } from "./SuggestionOverlay.jsx";
 import { useQuillEditor } from "../hooks/useQuillEditor.js";
 import { useCookies } from 'react-cookie';
 import UserProfileSettings from './UserProfileSettings';
-import LeftSidebar from './LeftSidebar';
 import RightSidebar from './RightSidebar';
 import DocumentStats from './DocumentStats';
 import CollaborationChat from './CollaborationChat';
-import AIChartPanel from './AIChartPanel';
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -30,10 +28,8 @@ const Document = () => {
     cursorColor: '#4285f4',
     profilePhoto: ''
   });
-  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
   const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
-  const [aiPanelOpen, setAIPanelOpen] = useState(false);
   const [documentOpenedAt] = useState(Date.now());
 
   const { editorRef, quillRef, initializeQuill, content, suggestionText, overlayPos, isLoading } = useQuillEditor(doc, presence);
@@ -122,19 +118,16 @@ const Document = () => {
         </div>
       </header>
 
-      <LeftSidebar
-        isCollapsed={leftSidebarCollapsed}
-        onToggle={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
-      />
-
       <RightSidebar
         isCollapsed={rightSidebarCollapsed}
         onToggle={() => setRightSidebarCollapsed(!rightSidebarCollapsed)}
+        documentContent={content}
+        documentId={docId}
+        userId={cookies.authToken}
+        userSettings={userSettings}
       />
 
       <main className={`document-main ${
-        leftSidebarCollapsed ? 'left-collapsed' : ''
-      } ${
         rightSidebarCollapsed ? 'right-collapsed' : ''
       }`}>
         <div className="editor-container">
@@ -165,12 +158,8 @@ const Document = () => {
         isOpen={chatOpen}
         onToggle={() => setChatOpen(!chatOpen)}
         currentUser={userSettings}
-      />
-
-      <AIChartPanel
-        isOpen={aiPanelOpen}
-        onToggle={() => setAIPanelOpen(!aiPanelOpen)}
-        documentContent={content}
+        documentId={docId}
+        userId={cookies.authToken}
       />
 
       <UserProfileSettings

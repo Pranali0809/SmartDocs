@@ -155,19 +155,15 @@ body {
 .document-main {
   position: fixed;
   top: 64px;
-  left: 280px;
-  right: 320px;
+  left: 0;
+  right: 420px;
   bottom: 0;
   overflow-y: auto;
-  transition: left 0.3s ease, right 0.3s ease;
+  transition: right 0.3s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 24px;
-}
-
-.document-main.left-collapsed {
-  left: 48px;
 }
 
 .document-main.right-collapsed {
